@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Cian’s Breakout</title>
+<style>
+*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:#0a1225;color:#edf4ff;font-family:system-ui,sans-serif;padding:20px}main{width:min(100%,520px)}.eyebrow{color:#93aaca;text-transform:uppercase;letter-spacing:3px;font-size:11px}h1{font-size:36px;margin:6px 0 18px;letter-spacing:-1px}h1 span{color:#ffd166}.stats{display:flex;justify-content:space-between;font-weight:700;margin-bottom:14px;color:#a5d4ff}.arena{position:relative;overflow:hidden;border:1px solid #344465;border-radius:18px;box-shadow:0 20px 70px #0005}canvas{display:block;width:100%;background:#101c34;touch-action:none}.overlay{position:absolute;inset:0;background:#091326e8;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px}h2{font-size:32px;margin:0 0 12px}.overlay p{color:#bbcae1;line-height:1.7;max-width:320px;margin:0 0 22px}button{font:inherit;font-weight:750;background:#ffd166;color:#102039;border:0;border-radius:10px;padding:12px 22px;cursor:pointer}button:focus-visible,canvas:focus-visible{outline:3px solid white;outline-offset:-3px}[hidden]{display:none!important}.actions{display:flex;gap:12px}.secondary,.controls button{background:#253752;color:#edf4ff}.pause{position:absolute;top:9px;right:9px;font-size:12px;padding:8px 12px}.controls{display:flex;gap:12px;margin-top:14px}.controls button{flex:1;touch-action:none;user-select:none;font-size:20px}.instructions{font-size:13px;line-height:1.8;text-align:center;color:#93aaca}.status{text-align:center;color:#ffd166;min-height:24px;margin-top:12px;font-size:14px}a{color:#a5d4ff}
+</style></head><body><main><div class="eyebrow">Cian’s arcade · 02</div><h1>Breakout<span>.</span></h1><div class="stats"><span>SCORE <output id="score">0</output></span><span>BRICKS <output id="remaining">41</output></span><span>LIVES <output id="lives">3</output></span></div><div class="arena"><canvas id="game" width="520" height="600" tabindex="0" aria-label="Breakout game. Move with arrow keys, A and D, mouse or touch. Press Space to launch."></canvas><button id="pause" class="pause" hidden>Ⅱ Pause</button><div id="overlay" class="overlay"><h2 id="title">Ready to break out?</h2><p id="message">Bounce the ball off your blue paddle and smash every brick. You have three lives. Top row: 3 hits. Second row: 2 hits. Other bricks: 1 hit. The glowing gold block has 6 health and releases mini bricks when hit!</p><div class="actions"><button id="start">Let’s play →</button><button id="restart" class="secondary" hidden>Restart</button></div></div></div><div class="status" id="status" role="status">Clear the wall. Keep the ball alive.</div><div class="controls"><button id="left" aria-label="Move left">←</button><button id="launch">Launch ball</button><button id="right" aria-label="Move right">→</button></div><p class="instructions">Move: ← → / A D / mouse / touch<br>Launch: Space or Launch ball · Pause: P<br><a href="index.html">Play Cian’s Dodger</a></p></main>
+<script>
+const $=id=>document.getElementById(id),canvas=$('game'),ctx=canvas.getContext('2d'),W=520,H=600;
+const paddle={x:208,y:549,w:104,h:14},ball={x:260,y:539,r:8,vx:0,vy:0};
+let bricks=[],score=0,lives=3,state='ready',waiting=true,previous=0;
+const keys=new Set(),held=new Map(),colors=['#ff859e','#b09aff','#67b7ff','#6fe1cb','#ffd166'];
+function resetInput(){keys.clear();held.clear();}
+function hud(){ $('score').textContent=score;$('lives').textContent=lives;$('remaining').textContent=bricks.filter(b=>b.alive).length;$('launch').disabled=state!=='playing'||!waiting; }
+function dock(){waiting=true;ball.x=paddle.x+paddle.w/2;ball.y=paddle.y-ball.r-2;ball.vx=0;ball.vy=0;$('status').textContent='Press Space or Launch ball when you’re ready.';hud();}
+function begin(){score=0;lives=3;paddle.x=208;bricks=[];for(let row=0;row<5;row++)for(let col=0;col<8;col++)bricks.push({x:24+col*60,y:66+row*31,w:52,h:23,color:colors[row],hp:row===0?3:row===1?2:1,maxHp:row===0?3:row===1?2:1,alive:true});bricks.push({x:208,y:22,w:104,h:26,color:'#ffdc38',hp:6,maxHp:6,special:true,alive:true});resetInput();state='playing';$('overlay').hidden=true;$('pause').hidden=false;$('restart').hidden=true;dock();canvas.focus();}
+function launch(){if(state!=='playing'||!waiting)return;waiting=false;ball.vx=140;ball.vy=-290;$('status').textContent='Hit with the paddle’s edges to change the angle.';hud();canvas.focus();}
+function pause(){if(state!=='playing')return;state='paused';resetInput();$('title').textContent='Game paused';$('message').textContent='Take a breather. Your ball will wait for you.';$('start').textContent='Continue';$('restart').hidden=false;$('overlay').hidden=false;$('pause').hidden=true;hud();$('start').focus();}
+function finish(won){state=won?'won':'over';resetInput();$('title').textContent=won?'You cleared the wall!':'Game Over';$('message').textContent=`You scored ${score} points.${won?' Every brick smashed—including the gold block!':' Ready for another try?'}`;$('start').textContent='Play Again';$('restart').hidden=true;$('pause').hidden=true;$('overlay').hidden=false;$('status').textContent=won?'Great bouncing!':'Try again to beat your score.';hud();$('start').focus();}
+$('start').addEventListener('click',()=>{if(state==='paused'){state='playing';$('overlay').hidden=true;$('restart').hidden=true;$('pause').hidden=false;hud();canvas.focus();}else begin();});$('restart').addEventListener('click',begin);$('pause').addEventListener('click',pause);$('launch').addEventListener('click',launch);
+window.addEventListener('keydown',e=>{const k=e.key.toLowerCase();if(['arrowleft','arrowright','a','d',' '].includes(k)){if(e.target.tagName==='BUTTON'&&k===' ')return;e.preventDefault();if(state==='playing')keys.add(k);if(k===' ')launch();}if(k==='p'&&!e.repeat){if(state==='paused')$('start').click();else pause();}});window.addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));window.addEventListener('blur',pause);document.addEventListener('visibilitychange',()=>{if(document.hidden)pause();});
+for(const dir of ['left','right']){const b=$(dir);b.addEventListener('pointerdown',e=>{if(state!=='playing')return;e.preventDefault();held.set(e.pointerId,dir);b.setPointerCapture(e.pointerId);});for(const event of ['pointerup','pointercancel','lostpointercapture'])b.addEventListener(event,e=>held.delete(e.pointerId));}
+function point(e){if(state!=='playing')return;const r=canvas.getBoundingClientRect();paddle.x=Math.max(0,Math.min(W-paddle.w,(e.clientX-r.left)*W/r.width-paddle.w/2));}
+canvas.addEventListener('pointermove',point);canvas.addEventListener('pointerdown',e=>{point(e);canvas.setPointerCapture(e.pointerId);});
+function hits(b){const x=Math.max(b.x,Math.min(ball.x,b.x+b.w)),y=Math.max(b.y,Math.min(ball.y,b.y+b.h));return (ball.x-x)**2+(ball.y-y)**2<=ball.r**2;}
+function update(dt){
+ const dirs=[...held.values()],left=keys.has('arrowleft')||keys.has('a')||dirs.includes('left'),right=keys.has('arrowright')||keys.has('d')||dirs.includes('right');
+ paddle.x=Math.max(0,Math.min(W-paddle.w,paddle.x+(Number(right)-Number(left))*420*dt));
+ if(waiting){ball.x=paddle.x+paddle.w/2;return;}
+ // Small physics steps keep the ball from skipping through thin bricks.
+ const steps=Math.max(1,Math.ceil(Math.hypot(ball.vx,ball.vy)*dt/4)),step=dt/steps;
+ for(let i=0;i<steps;i++){
+  const oldX=ball.x;ball.x+=ball.vx*step;ball.y+=ball.vy*step;
+  if(ball.x<ball.r){ball.x=ball.r;ball.vx=Math.abs(ball.vx);}if(ball.x>W-ball.r){ball.x=W-ball.r;ball.vx=-Math.abs(ball.vx);}if(ball.y<ball.r){ball.y=ball.r;ball.vy=Math.abs(ball.vy);}
+  if(ball.vy>0&&ball.y<=paddle.y+paddle.h&&hits(paddle)){const hit=Math.max(-1,Math.min(1,(ball.x-paddle.x-paddle.w/2)/(paddle.w/2))),angle=hit*Math.PI/3,speed=Math.min(420,Math.hypot(ball.vx,ball.vy)+3);ball.vx=Math.sin(angle)*speed;ball.vy=-Math.cos(angle)*speed;ball.y=paddle.y-ball.r-.1;}
+  for(const b of bricks){if(!b.alive||!hits(b))continue;b.hp--;if(b.special)spawnMiniBricks(b);if(b.hp===0){b.alive=false;score+=b.special?100:10;}if(oldX+ball.r<=b.x||oldX-ball.r>=b.x+b.w)ball.vx*=-1;else ball.vy*=-1;hud();if(bricks.every(b=>!b.alive)){finish(true);return;}break;}
+  if(ball.y-ball.r>H){lives--;if(lives<=0)finish(false);else dock();return;}
+ }
+}
+function box(x,y,w,h,color){ctx.fillStyle=color;ctx.beginPath();ctx.roundRect(x,y,w,h,5);ctx.fill();}
+function spawnMiniBricks(source){
+ // Spread mini bricks through open space while keeping the paddle area clear.
+ for(let side=0;side<2;side++){
+  let mini=null;
+  for(let attempt=0;attempt<200;attempt++){
+   const candidate={x:16+Math.random()*(W-62),y:58+Math.random()*360,w:30,h:16,color:'#ffe89b',hp:1,maxHp:1,mini:true,alive:true};
+   const crowded=bricks.some(b=>b.alive&&candidate.x<b.x+b.w+12&&candidate.x+candidate.w>b.x-12&&candidate.y<b.y+b.h+12&&candidate.y+candidate.h>b.y-12);
+   if(!crowded&&!hits(candidate)){mini=candidate;break;}
+  }
+  if(mini)bricks.push(mini);
+ }
+ $('status').textContent=source.hp>0?`Gold block: ${source.hp} health · Two mini bricks spawned!`:'Gold block destroyed! Clear the remaining mini bricks.';
+}
+function drawGoldBrick(b){
+ ctx.save();ctx.shadowColor='#ffce32';ctx.shadowBlur=18;box(b.x,b.y,b.w,b.h,'#ffdc38');ctx.shadowBlur=0;
+ ctx.strokeStyle='#fff5ad';ctx.lineWidth=2;ctx.strokeRect(b.x+2,b.y+2,b.w-4,b.h-4);
+ ctx.fillStyle='#000000';ctx.font='bold 12px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(`★ GOLD ${b.hp} ★`,b.x+b.w/2,b.y+10);
+ for(let i=0;i<b.maxHp;i++)box(b.x+18+i*12,b.y+19,9,3,i<b.hp?'#80500d':'#fff3ab');
+ ctx.restore();
+}
+function drawCracks(b){
+ const damage=b.maxHp-b.hp;if(damage<=0)return;
+ ctx.save();ctx.translate(b.x,b.y);ctx.lineCap='round';ctx.lineJoin='round';
+ const paths=[[[24,1],[21,7],[28,12],[24,18],[27,22]],[[28,12],[36,9],[40,12]]];
+ if(damage>=2)paths.push([[2,7],[12,10],[17,16],[24,18]],[[28,12],[35,17],[44,15],[51,19]],[[17,16],[13,22]]);
+ for(const [color,width] of [['#ffffff70',3],['#182238',1.6]]){
+  ctx.strokeStyle=color;ctx.lineWidth=width;
+  for(const path of paths){ctx.beginPath();path.forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y));ctx.stroke();}
+ }
+ ctx.restore();
+}
+function draw(){ctx.fillStyle='#101c34';ctx.fillRect(0,0,W,H);ctx.fillStyle='#ffffff15';for(let i=0;i<45;i++)ctx.fillRect((i*137)%W,(i*79)%H,2,2);for(const b of bricks){if(!b.alive)continue;if(b.special){drawGoldBrick(b);continue;}box(b.x,b.y,b.w,b.h,b.color);box(b.x+4,b.y+3,b.w-8,3,'#ffffff40');drawCracks(b);}ctx.shadowColor='#67b7ff';ctx.shadowBlur=15;box(paddle.x,paddle.y,paddle.w,paddle.h,'#67b7ff');ctx.shadowColor='#ffd166';ctx.fillStyle='#fff0bb';ctx.beginPath();ctx.arc(ball.x,ball.y,ball.r,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;}
+function frame(t){const dt=Math.min((t-previous)/1000,.033);previous=t;if(state==='playing')update(dt);draw();requestAnimationFrame(frame);}hud();requestAnimationFrame(frame);
+</script></body></html>
